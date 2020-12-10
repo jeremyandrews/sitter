@@ -3,5 +3,12 @@ name = "sitter"
 version = "0.1.0"
 authors = ["Jeremy Andrews <jeremy@tag1.com>"]
 edition = "2018"
+description = "A library for managing user registration, login, and the user's things."
+homepage = "https://github.com/jeremyandrews/sitter"
+documentation = "https://docs.rs/sitter/"
+repository = "https://github.com/jeremyandrewws/sitter"
+readme = "README.md"
+keywords = ["user", "registration", "framework", "web"]
+license = "Apache-2.0"
 
 [dependencies]
