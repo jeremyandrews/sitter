@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use sqlx::postgres::PgPool;
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Person {
     pub id: Uuid,
@@ -20,10 +22,13 @@ pub struct PersonFilter {
 }
 
 /// A helper function to add a new Person object to the database.
-pub async fn create(name: &str, email: &str, pass: &str) -> anyhow::Result<String> {
+pub async fn create(
+    db: &PgPool,
+    name: &str,
+    email: &str,
+    pass: &str
+) -> anyhow::Result<String> {
     // @TODO: validate (and/or allow validation of) name, email and pass.
-
-    let db = crate::db::connect().await?;
 
     // @TODO: error handling.
     let insert = sqlx::query!(
@@ -36,7 +41,7 @@ RETURNING id
         email,
         pass
     )
-    .fetch_one(&db)
+    .fetch_one(db)
     .await?;
 
     // @TODO: logging.
@@ -47,8 +52,10 @@ RETURNING id
 }
 
 /// A helper function to add a new Person object to the database.
-pub async fn read(_person_filter: Option<PersonFilter>) -> anyhow::Result<Vec<Person>> {
-    let db = crate::db::connect().await?;
+pub async fn read(
+    db: &PgPool,
+    _person_filter: Option<PersonFilter>
+) -> anyhow::Result<Vec<Person>> {
 
     // @TODO build optional filter query.
 
@@ -59,7 +66,7 @@ SELECT id, name, email, pass
 FROM person
         "#
     )
-    .fetch_all(&db)
+    .fetch_all(db)
     .await?;
 
     // @TODO: logging.
