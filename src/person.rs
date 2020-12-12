@@ -47,7 +47,7 @@ RETURNING id
 }
 
 /// A helper function to add a new Person object to the database.
-pub async fn read(person_filter: Option<PersonFilter>) -> anyhow::Result<Vec<Person>> {
+pub async fn read(_person_filter: Option<PersonFilter>) -> anyhow::Result<Vec<Person>> {
     let db = crate::db::connect().await?;
 
     // @TODO build optional filter query.
@@ -55,7 +55,7 @@ pub async fn read(person_filter: Option<PersonFilter>) -> anyhow::Result<Vec<Per
     let persons = sqlx::query_as!(
         Person,
         r#"
-SELECT *
+SELECT id, name, email, pass
 FROM person
         "#
     )

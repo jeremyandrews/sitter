@@ -1,6 +1,6 @@
 [package]
 name = "sitter"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jeremy Andrews <jeremy@tag1.com>"]
 edition = "2018"
 description = "A library for managing user registration, login, and the user's things."
@@ -13,8 +13,6 @@ license = "Apache-2.0"
 
 [dependencies]
 anyhow = "1.0"
-# @TODO: remove async-std, used temporarily for inline testing.
-async-std = { version = "1.6.0", features = [ "attributes" ] }
 bigdecimal = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 dotenv = "0.15.0"
@@ -25,6 +23,3 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sqlx = { version = "0.4.0", features = [ "chrono", "decimal", "json", "postgres", "runtime-async-std-rustls", "uuid" ] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
-
-[dev-dependencies]
-async-std = { version = "1.6.0", features = [ "attributes" ] }
