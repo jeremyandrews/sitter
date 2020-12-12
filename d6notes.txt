@@ -1,0 +1,26 @@
+fn user_login
+ - check if user is already logged in: redirect if yes
+ - display login form
+    o username
+    o password
+    o form['#validate'] => user_login_default_validators()
+       - user_login_name_validate
+       - user_login_authenticate_validate
+       - user_login_final_validate
+    o submit
+
+user_login_name_validate
+ - check if user is blocked
+ - check if name is reserved
+
+user_login_authenticate_validate
+ - validate username/password against db
+     o load user from db
+     o check if email is reserved
+     o finalize the login if no errors
+     o update last-access timestamp
+     o regenerate session
+     o invoke hook _login
+
+user_login_final_validate
+ - makes sure the user was authenticated and has a uid

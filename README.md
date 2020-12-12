@@ -2,6 +2,23 @@
 
 A library for managing user registration, login, and the user's things.
 
+## Installation
+
+Sitter currently uses the SQLx ORM to manage connections to a Postgres database. The CLI interface to SQLx an be used to install the Sitter schema.
+
+```sh
+cargo install --version=0.2.0 sqlx-cli --no-default-features --features postgres
+```
+
+In a development environment, you can configure database access and install the Sitter schema as follows:
+
+```sh
+echo DATABASE_URL=postgres://username:password@localhost/diesel_demo > .env
+diesel setup
+sqlx database create
+sqlx migrate run
+```
+
 ## Architecture
 
 Sitter is inspired by the architecture of the Drupal 6 User module. It aims to provide a flexible and extensible mechanism for managing user registration, login, and permissions.
