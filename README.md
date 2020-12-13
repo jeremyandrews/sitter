@@ -4,46 +4,12 @@ A library for managing user registration, login, and the user's things.
 
 ## Installation
 
-Sitter currently uses the SQLx ORM to manage connections to a Postgres database. The CLI interface to SQLx an be used to install the Sitter schema.
-
-```sh
-cargo install --version=0.2.0 sqlx-cli --no-default-features --features postgres
-```
-
-In a development environment, you can configure database access and install the Sitter schema as follows:
-
-```sh
-echo DATABASE_URL=postgres://username:password@localhost/diesel_demo > .env
-diesel setup
-sqlx database create
-sqlx migrate run
-```
+Sitter is currently tightly coupled with the Neighbor application. To create the necessary schema, follow these directions:
+https://github.com/jeremyandrews/neighbor/blob/main/README.md#installation
 
 ## Architecture
 
 Sitter is inspired by the architecture of the Drupal 6 User module. It aims to provide a flexible and extensible mechanism for managing user registration, login, and permissions.
-
-## Paths
-
-The following paths are the default endpoints provided by Sitter, but they can be overridden. (Actual paths TBD)
-
- - api
- - api/user
- - api/user/register
- - api/user/login
- - api/user/view
- - api/user/edit
- - api/user/logout
- - api/user/delete
-
-or, CRUD-based naming?
-
- - api
- - api/user
- - api/user/create (register)
- - api/user/read (login and view)
- - api/user/update (edit)
- - api/user/delete (delete)
 
 ## Notes
 
@@ -68,7 +34,7 @@ or, CRUD-based naming?
 
 ## Research
 
- - ORM (Diesel?); MySQL, PostgreSQL, and/or SQLite;
+ - MySQL, PostgreSQL, and/or SQLite;
  - customized user table/fields (ie, email only?);
  - customized paths;
  - passwords/bcrypt;
