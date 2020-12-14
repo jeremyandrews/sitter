@@ -29,7 +29,7 @@ impl Person {
         // @TODO: validate (and/or allow validation of) name, email and pass.
 
         let mut transaction = db.begin().await?;
-        let person = sqlx::query("INSERT INTO person (name, email, pass) VALUES ($1, $2) RETURNING id, name, email, pass")
+        let person = sqlx::query("INSERT INTO person (name, email, pass) VALUES ($1, $2, $3) RETURNING id, name, email, pass")
             .bind(&person.name)
             .bind(&person.email)
             .bind(&person.pass)
