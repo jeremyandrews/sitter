@@ -7,12 +7,24 @@ use anyhow::Result;
 use sqlx::postgres::PgRow;
 use sqlx::{Done, FromRow, PgPool, Row};
 
+use crate::{email, logger, password};
+
 #[derive(Serialize, FromRow, Debug)]
 pub struct Person {
     pub id: Uuid,
     pub name: String,
     pub email: String,
     pub pass: String,
+}
+
+#[allow(unused_variables)]
+pub trait PersonHooks {
+    /// Validate the PersonRequest.
+    fn validate(person: &PersonRequest) -> Result<()>;
+    /// Do any necessary preprocessing to the PersonRequest.
+    fn presave(person: &mut PersonRequest) -> Result<()>;
+    /// Do any necessary postprocessing to the Person.
+    fn postsave(person: &mut Person, action: &str) -> Result<()>;
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -24,14 +36,20 @@ pub struct PersonRequest {
 
 impl Person {
     /// Add a Person object to the database.
-    pub async fn create(person: PersonRequest, db: &PgPool) -> Result<Person> {
-        // @TODO: validate (and/or allow validation of) name, email and pass.
+    pub async fn create(person_request: PersonRequest, db: &PgPool) -> Result<Person> {
+        // @TODO: Properly register and invoke hook_validate().
+        password::Password::validate(&person_request)?;
+        email::Email::validate(&person_request)?;
+
+        // @TODO: Properly register and invoke hook_presave().
+        let mut request = person_request;
+        password::Password::presave(&mut request)?;
 
         let mut transaction = db.begin().await?;
-        let person = sqlx::query("INSERT INTO person (name, email, pass) VALUES ($1, $2, $3) RETURNING id, name, email, pass")
-            .bind(&person.name)
-            .bind(&person.email)
-            .bind(&person.pass)
+        let mut person = sqlx::query("INSERT INTO person (name, email, pass) VALUES ($1, $2, $3) RETURNING id, name, email, pass")
+            .bind(&request.name)
+            .bind(&request.email)
+            .bind(&request.pass)
             .map(|row: PgRow| {
                 Person {
                     id: row.get(0),
@@ -44,9 +62,8 @@ impl Person {
             .await?;
         transaction.commit().await?;
 
-        // @TODO: logging.
-
-        // @TODO: hook_create.
+        // @TODO: Properly register and invoke hook_postsave().
+        logger::Logger::postsave(&mut person, "created")?;
 
         Ok(person)
     }
@@ -99,24 +116,32 @@ impl Person {
             });
         }
 
-        // @TODO: logging.
-
-        // @TODO: hook_read.
-
         Ok(persons)
     }
 
-    pub async fn update(id: Uuid, person: PersonRequest, db: &PgPool) -> Result<Person> {
+    pub async fn update(id: Uuid, person_request: PersonRequest, db: &PgPool) -> Result<Person> {
+        // @TODO: Properly register and invoke hook_validate().
+        if !person_request.pass.is_empty() {
+            password::Password::validate(&person_request)?;
+        }
+        email::Email::validate(&person_request)?;
+
+        // @TODO: Properly register and invoke hook_presave().
+        let mut request = person_request;
+        if !request.pass.is_empty() {
+            password::Password::presave(&mut request)?;
+        }
+
         let mut transaction = db.begin().await.unwrap();
-        let person = sqlx::query(
+        let mut person = sqlx::query(
             r#"
                 UPDATE person SET name = $1, email = $2
                 WHERE id = $3
                 RETURNING id, name, email, pass
             "#,
         )
-        .bind(&person.name)
-        .bind(&person.email)
+        .bind(&request.name)
+        .bind(&request.email)
         .bind(id)
         .map(|row: PgRow| Person {
             id: row.get(0),
@@ -126,8 +151,11 @@ impl Person {
         })
         .fetch_one(&mut transaction)
         .await?;
-
         transaction.commit().await.unwrap();
+
+        // @TODO: Properly register and invoke hook_postsave().
+        logger::Logger::postsave(&mut person, "updated")?;
+
         Ok(person)
     }
 
@@ -140,6 +168,11 @@ impl Person {
             .rows_affected();
 
         transaction.commit().await?;
+
+        // @TODO: Properly register and invoke hook_postsave().
+        // @TODO: Load person from db before deleting it, for logging?
+        //logger::Logger::postsave(&mut person, "deleted")?;
+
         Ok(deleted)
     }
 }
