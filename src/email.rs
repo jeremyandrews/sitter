@@ -1,5 +1,4 @@
 /// Functions to help with sending and validating email.
-
 use lazy_static::lazy_static;
 use regex::Regex;
 

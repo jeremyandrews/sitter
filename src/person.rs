@@ -1,14 +1,13 @@
 /// A Person is the primary object defined and managed by Sitter. It could
 /// also be referred to as the User.
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use anyhow::Result;
-use sqlx::{PgPool, Row};
 use sqlx::postgres::PgRow;
+use sqlx::{Done, FromRow, PgPool, Row};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Serialize, FromRow, Debug)]
 pub struct Person {
     pub id: Uuid,
     pub name: String,
@@ -24,7 +23,7 @@ pub struct PersonRequest {
 }
 
 impl Person {
-    /// A helper function to add a new Person object to the database.
+    /// Add a Person object to the database.
     pub async fn create(person: PersonRequest, db: &PgPool) -> Result<Person> {
         // @TODO: validate (and/or allow validation of) name, email and pass.
 
@@ -52,28 +51,45 @@ impl Person {
         Ok(person)
     }
 
-    pub async fn read(_person_filter: Option<PersonFilter>, db: &PgPool) -> Result<Vec<Person>> {
+    /// List one or more Person objects from the database.
+    pub async fn read(uuid: Option<Uuid>, db: &PgPool) -> Result<Vec<Person>> {
         // @TODO build optional filter query.
 
-        let mut persons = vec![];
-
-        let records = sqlx::query(
-            r#"
-                SELECT id, name, email, pass
-                FROM person
-            "#
-        )
-            .map(|row: PgRow| {
-                Person {
-                    id: row.get(0),
-                    name: row.get(1),
-                    email: row.get(2),
-                    pass: row.get(3)
-                }
+        let records = if let Some(id) = uuid {
+            sqlx::query(
+                r#"
+                    SELECT id, name, email, pass
+                    FROM person
+                    WHERE id = $1
+                "#,
+            )
+            .bind(id)
+            .map(|row: PgRow| Person {
+                id: row.get(0),
+                name: row.get(1),
+                email: row.get(2),
+                pass: row.get(3),
             })
             .fetch_all(db)
-            .await?;
-        
+            .await?
+        } else {
+            sqlx::query(
+                r#"
+                    SELECT id, name, email, pass
+                    FROM person
+                "#,
+            )
+            .map(|row: PgRow| Person {
+                id: row.get(0),
+                name: row.get(1),
+                email: row.get(2),
+                pass: row.get(3),
+            })
+            .fetch_all(db)
+            .await?
+        };
+
+        let mut persons = vec![];
         for record in records {
             persons.push(Person {
                 id: record.id,
@@ -89,12 +105,41 @@ impl Person {
 
         Ok(persons)
     }
-}
 
+    pub async fn update(id: Uuid, person: PersonRequest, db: &PgPool) -> Result<Person> {
+        let mut transaction = db.begin().await.unwrap();
+        let person = sqlx::query(
+            r#"
+                UPDATE person SET name = $1, email = $2
+                WHERE id = $3
+                RETURNING id, name, email, pass
+            "#,
+        )
+        .bind(&person.name)
+        .bind(&person.email)
+        .bind(id)
+        .map(|row: PgRow| Person {
+            id: row.get(0),
+            name: row.get(1),
+            email: row.get(2),
+            pass: row.get(3),
+        })
+        .fetch_one(&mut transaction)
+        .await?;
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct PersonFilter {
-    pub ids: Option<Vec<Uuid>>,
-    pub names: Option<Vec<String>>,
-    pub emails: Option<Vec<String>>,
+        transaction.commit().await.unwrap();
+        Ok(person)
+    }
+
+    pub async fn delete(id: Uuid, db: &PgPool) -> Result<u64> {
+        let mut transaction = db.begin().await?;
+        let deleted = sqlx::query("DELETE FROM person WHERE id = $1")
+            .bind(id)
+            .execute(&mut transaction)
+            .await?
+            .rows_affected();
+
+        transaction.commit().await?;
+        Ok(deleted)
+    }
 }

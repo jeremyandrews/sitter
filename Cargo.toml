@@ -1,6 +1,6 @@
 [package]
 name = "sitter"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Jeremy Andrews <jeremy@tag1.com>"]
 edition = "2018"
 description = "A library for managing user registration, login, and the user's things."
@@ -17,6 +17,5 @@ lazy_static = "1.4"
 log = "0.4"
 regex = "1.4"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 sqlx = { version = "0.4.0", features = ["postgres", "runtime-async-std-rustls", "uuid"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
