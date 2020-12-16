@@ -7,8 +7,6 @@ use anyhow::Result;
 use sqlx::postgres::PgRow;
 use sqlx::{Done, FromRow, PgPool, Row};
 
-use crate::{email, logger, password};
-
 #[derive(Serialize, FromRow, Debug)]
 pub struct Person {
     pub id: Uuid,
@@ -18,13 +16,28 @@ pub struct Person {
 }
 
 #[allow(unused_variables)]
-pub trait PersonHooks {
+pub trait PersonHook {
     /// Validate the PersonRequest.
-    fn validate(person: &PersonRequest) -> Result<()>;
+    fn validate(&self, person: &PersonRequest, action: &str) -> Result<()>;
     /// Do any necessary preprocessing to the PersonRequest.
-    fn presave(person: &mut PersonRequest) -> Result<()>;
+    fn prepare(&self, person: &mut PersonRequest, action: &str) -> Result<()>;
+    /// Do any necessary preprocessing to the Id (Read and Delete).
+    fn prepare_id(&self, id: &mut Uuid, action: &str) -> Result<()>;
     /// Do any necessary postprocessing to the Person.
-    fn postsave(person: &mut Person, action: &str) -> Result<()>;
+    fn processed(&self, person: &mut Person, action: &str) -> Result<()>;
+}
+
+pub struct PersonHooks {
+    hooks: Vec<Box<dyn PersonHook + Send>>,
+}
+impl PersonHooks {
+    pub fn initialize() -> Self {
+        Self { hooks: Vec::new() }
+    }
+
+    pub fn register_hook<H: PersonHook + 'static + Send>(&mut self, hook: H) {
+        self.hooks.push(Box::new(hook));
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -36,14 +49,23 @@ pub struct PersonRequest {
 
 impl Person {
     /// Add a Person object to the database.
-    pub async fn create(person_request: PersonRequest, db: &PgPool) -> Result<Person> {
-        // @TODO: Properly register and invoke hook_validate().
-        password::Password::validate(&person_request)?;
-        email::Email::validate(&person_request)?;
+    pub async fn create(
+        person_request: PersonRequest,
+        db: &PgPool,
+        hooks: &PersonHooks,
+    ) -> Result<Person> {
+        let action = "create";
 
-        // @TODO: Properly register and invoke hook_presave().
+        // Invoke hook_validate().
+        for hook in &hooks.hooks {
+            hook.validate(&person_request, action)?;
+        }
+
+        // Invoke hook_prepare().
         let mut request = person_request;
-        password::Password::presave(&mut request)?;
+        for hook in &hooks.hooks {
+            hook.prepare(&mut request, action)?;
+        }
 
         let mut transaction = db.begin().await?;
         let mut person = sqlx::query("INSERT INTO person (name, email, pass) VALUES ($1, $2, $3) RETURNING id, name, email, pass")
@@ -62,15 +84,24 @@ impl Person {
             .await?;
         transaction.commit().await?;
 
-        // @TODO: Properly register and invoke hook_postsave().
-        logger::Logger::postsave(&mut person, "created")?;
+        // Invoke hook_processed().
+        for hook in &hooks.hooks {
+            hook.processed(&mut person, action)?;
+        }
 
         Ok(person)
     }
 
     /// List one or more Person objects from the database.
-    pub async fn read(uuid: Option<Uuid>, db: &PgPool) -> Result<Vec<Person>> {
-        // @TODO build optional filter query.
+    pub async fn read(uuid: Option<Uuid>, db: &PgPool, hooks: &PersonHooks) -> Result<Vec<Person>> {
+        let action = "read";
+
+        if let Some(mut id) = uuid {
+            // Invoke hook_prepare_id().
+            for hook in &hooks.hooks {
+                hook.prepare_id(&mut id, action)?;
+            }
+        }
 
         let records = if let Some(id) = uuid {
             sqlx::query(
@@ -119,17 +150,25 @@ impl Person {
         Ok(persons)
     }
 
-    pub async fn update(id: Uuid, person_request: PersonRequest, db: &PgPool) -> Result<Person> {
+    pub async fn update(
+        id: Uuid,
+        person_request: PersonRequest,
+        db: &PgPool,
+        hooks: &PersonHooks,
+    ) -> Result<Person> {
+        let action = "update";
         // @TODO: Properly register and invoke hook_validate().
-        if !person_request.pass.is_empty() {
-            password::Password::validate(&person_request)?;
+        // Invoke hook_validate().
+        for hook in &hooks.hooks {
+            hook.validate(&person_request, action)?;
         }
-        email::Email::validate(&person_request)?;
 
-        // @TODO: Properly register and invoke hook_presave().
+        // Invoke hook_prepare().
         let mut request = person_request;
         if !request.pass.is_empty() {
-            password::Password::presave(&mut request)?;
+            for hook in &hooks.hooks {
+                hook.prepare(&mut request, action)?;
+            }
         }
 
         let mut transaction = db.begin().await.unwrap();
@@ -153,13 +192,22 @@ impl Person {
         .await?;
         transaction.commit().await.unwrap();
 
-        // @TODO: Properly register and invoke hook_postsave().
-        logger::Logger::postsave(&mut person, "updated")?;
+        // Invoke hook_processed().
+        for hook in &hooks.hooks {
+            hook.processed(&mut person, action)?;
+        }
 
         Ok(person)
     }
 
-    pub async fn delete(id: Uuid, db: &PgPool) -> Result<u64> {
+    pub async fn delete(mut id: Uuid, db: &PgPool, hooks: &PersonHooks) -> Result<u64> {
+        let action = "delete";
+
+        // Invoke hook_prepare_id().
+        for hook in &hooks.hooks {
+            hook.prepare_id(&mut id, action)?;
+        }
+
         let mut transaction = db.begin().await?;
         let deleted = sqlx::query("DELETE FROM person WHERE id = $1")
             .bind(id)
@@ -169,9 +217,11 @@ impl Person {
 
         transaction.commit().await?;
 
-        // @TODO: Properly register and invoke hook_postsave().
         // @TODO: Load person from db before deleting it, for logging?
-        //logger::Logger::postsave(&mut person, "deleted")?;
+        // Invoke hook_processed().
+        //for hook in &hooks.hooks {
+        //    hook.processed(&mut person, "deleted")?;
+        //}
 
         Ok(deleted)
     }

@@ -2,14 +2,15 @@
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
+use uuid::Uuid;
 
-use crate::person::{Person, PersonHooks, PersonRequest};
+use crate::person::{Person, PersonHook, PersonRequest};
 
 pub struct Email;
 
-impl PersonHooks for Email {
+impl PersonHook for Email {
     /// Validate the syntax of an e-mail address.
-    fn validate(person_request: &PersonRequest) -> Result<()> {
+    fn validate(&self, person_request: &PersonRequest, _action: &str) -> Result<()> {
         // Compile the regular expression only one time.
         // @TODO: improve the regular expression.
         lazy_static! {
@@ -30,12 +31,17 @@ impl PersonHooks for Email {
     }
 
     /// No preprocessing is done of emails.
-    fn presave(_person_request: &mut PersonRequest) -> Result<()> {
+    fn prepare(&self, _person_request: &mut PersonRequest, _action: &str) -> Result<()> {
+        Ok(())
+    }
+
+    /// No prepare_id is done of emails.
+    fn prepare_id(&self, _id: &mut Uuid, _action: &str) -> Result<()> {
         Ok(())
     }
 
     /// No postprocessing is done of emails.
-    fn postsave(_person: &mut Person, _action: &str) -> Result<()> {
+    fn processed(&self, _person: &mut Person, _action: &str) -> Result<()> {
         Ok(())
     }
 }
@@ -45,13 +51,16 @@ mod tests {
     #[test]
     fn validate_email() {
         use crate::email::{Email, PersonRequest};
-        use crate::person::PersonHooks;
+        use crate::person::PersonHook;
 
         let mut person_request = PersonRequest {
             name: "".to_string(),
             email: "".to_string(),
             pass: "".to_string(),
         };
+
+        // Simulate invoking a hook.
+        let email_object = Email {};
 
         // Very some valid email formats.
         for email in vec![
@@ -64,7 +73,10 @@ mod tests {
             //"somebody@0:0:0:0:0:0:0:1",
         ] {
             person_request.email = email.to_string();
-            assert_eq!(Email::validate(&person_request).is_ok(), true);
+            assert_eq!(
+                Email::validate(&email_object, &person_request, "create").is_ok(),
+                true
+            );
         }
 
         // TODO Verify that the following errors return an error.
@@ -78,7 +90,10 @@ mod tests {
             "nobody@example-.com",
         ] {
             person_request.email = email.to_string();
-            assert_eq!(Email::validate(&person_request).is_err(), true);
+            assert_eq!(
+                Email::validate(&email_object, &person_request, "create").is_ok(),
+                false
+            );
         }
     }
 }
