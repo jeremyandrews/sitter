@@ -1,6 +1,6 @@
 [package]
 name = "sitter"
-version = "0.1.6"
+version = "0.1.7-dev"
 authors = ["Jeremy Andrews <jeremy@tag1.com>"]
 edition = "2018"
 description = "A library for managing user registration, login, and the user's things."

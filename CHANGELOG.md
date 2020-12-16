@@ -1,14 +1,16 @@
 # Changelog
 
+## 0.1.7-dev
+
 ## 0.1.6 Dec 16, 2020
  - introduce `PersonHook`: `validate`, `prepare`, `prepare_id` and `processed`
  - introduce `PersonHooks` allowing Neighbor to register hooks
  - in password hook_validate enforce minimum password length
- - in password hook_prepare hash password with Argon2
  - in email hook_validate run simplistic regex on email address
+ - in password hook_prepare hash password with Argon2
  - in logger hook_processed log Create and Update events.
 
-## 0.1.4, 0.1.5 Dec 15, 2020
+## 0.1.5, 0.1.4 Dec 15, 2020
  - implement all `CRUD` queries
  - properly receive database from Neighbor
 
