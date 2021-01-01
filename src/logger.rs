@@ -26,7 +26,7 @@ impl PersonHook for Logger {
 
     /// Log activity in postsave.
     fn processed(&self, person: &mut Person, action: &str) -> Result<()> {
-        info!("{} person '{}'", action, person.name);
+        info!("{} person '{}'", action, person.email);
 
         Ok(())
     }

@@ -54,7 +54,6 @@ mod tests {
         use crate::person::PersonHook;
 
         let mut person_request = PersonRequest {
-            name: "".to_string(),
             email: "".to_string(),
             pass: "".to_string(),
         };

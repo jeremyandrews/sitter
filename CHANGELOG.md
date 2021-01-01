@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.1.7-dev
+ - remove `name` from default `Person` struct, only require `email` and `password`
 
 ## 0.1.6 Dec 16, 2020
  - introduce `PersonHook`: `validate`, `prepare`, `prepare_id` and `processed`

@@ -10,7 +10,6 @@ use sqlx::{Done, FromRow, PgPool, Row};
 #[derive(Serialize, FromRow, Debug)]
 pub struct Person {
     pub id: Uuid,
-    pub name: String,
     pub email: String,
     pub pass: String,
 }
@@ -42,7 +41,6 @@ impl PersonHooks {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PersonRequest {
-    pub name: String,
     pub email: String,
     pub pass: String,
 }
@@ -68,16 +66,14 @@ impl Person {
         }
 
         let mut transaction = db.begin().await?;
-        let mut person = sqlx::query("INSERT INTO person (name, email, pass) VALUES ($1, $2, $3) RETURNING id, name, email, pass")
-            .bind(&request.name)
+        let mut person = sqlx::query("INSERT INTO person (email, pass) VALUES ($1, $2) RETURNING id, email, pass")
             .bind(&request.email)
             .bind(&request.pass)
             .map(|row: PgRow| {
                 Person {
                     id: row.get(0),
-                    name: row.get(1),
-                    email: row.get(2),
-                    pass: row.get(3)
+                    email: row.get(1),
+                    pass: row.get(2)
                 }
             })
             .fetch_one(&mut transaction)
@@ -106,7 +102,7 @@ impl Person {
         let records = if let Some(id) = uuid {
             sqlx::query(
                 r#"
-                    SELECT id, name, email, pass
+                    SELECT id, email, pass
                     FROM person
                     WHERE id = $1
                 "#,
@@ -114,24 +110,22 @@ impl Person {
             .bind(id)
             .map(|row: PgRow| Person {
                 id: row.get(0),
-                name: row.get(1),
-                email: row.get(2),
-                pass: row.get(3),
+                email: row.get(1),
+                pass: row.get(2),
             })
             .fetch_all(db)
             .await?
         } else {
             sqlx::query(
                 r#"
-                    SELECT id, name, email, pass
+                    SELECT id, email, pass
                     FROM person
                 "#,
             )
             .map(|row: PgRow| Person {
                 id: row.get(0),
-                name: row.get(1),
-                email: row.get(2),
-                pass: row.get(3),
+                email: row.get(1),
+                pass: row.get(2),
             })
             .fetch_all(db)
             .await?
@@ -141,7 +135,6 @@ impl Person {
         for record in records {
             persons.push(Person {
                 id: record.id,
-                name: record.name,
                 email: record.email,
                 pass: record.pass,
             });
@@ -174,19 +167,17 @@ impl Person {
         let mut transaction = db.begin().await.unwrap();
         let mut person = sqlx::query(
             r#"
-                UPDATE person SET name = $1, email = $2
-                WHERE id = $3
-                RETURNING id, name, email, pass
+                UPDATE person SET email = $1
+                WHERE id = $2
+                RETURNING id, email, pass
             "#,
         )
-        .bind(&request.name)
         .bind(&request.email)
         .bind(id)
         .map(|row: PgRow| Person {
             id: row.get(0),
-            name: row.get(1),
-            email: row.get(2),
-            pass: row.get(3),
+            email: row.get(1),
+            pass: row.get(2),
         })
         .fetch_one(&mut transaction)
         .await?;
